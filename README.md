@@ -1,4 +1,4 @@
-# mnet
+# circuits-net
 
 A small neural-network library rebuilt as a client of the circuits ecosystem.
 
@@ -8,7 +8,7 @@ https://cybercat.institute/2024/04/15/neural-network-first-principles/
 
 ## Overview
 
-`mnet` now delegates its building blocks to the circuits ecosystem instead of
+`circuits-net` now delegates its building blocks to the circuits ecosystem instead of
 rolling them by hand:
 
 - **circuits-mat** — dense matrix/vector operations (`Circuit.Mat.Dense`).

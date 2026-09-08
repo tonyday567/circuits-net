@@ -1,5 +1,5 @@
 cabal-version: 3.0
-name: mnet
+name: circuits-net
 version: 0.1.0.0
 license: BSD-3-Clause
 license-file: LICENSE
@@ -7,8 +7,8 @@ copyright: Tony Day (c) 2026
 category: Machine Learning
 author: Tony Day
 maintainer: tonyday567@gmail.com
-homepage: https://github.com/tonyday567/mnet#readme
-bug-reports: https://github.com/tonyday567/mnet/issues
+homepage: https://github.com/tonyday567/circuits-net#readme
+bug-reports: https://github.com/tonyday567/circuits-net/issues
 synopsis: Modular neural network as a circuits-ecosystem client
 description:
   A small neural-network library rebuilt on the circuits ecosystem:
@@ -24,7 +24,7 @@ tested-with:
 
 source-repository head
   type: git
-  location: https://github.com/tonyday567/mnet
+  location: https://github.com/tonyday567/circuits-net
 
 common ghc-options-stanza
   ghc-options:
@@ -56,7 +56,7 @@ library
     these >=1.1 && <1.3,
     vector >=0.12 && <0.14,
 
-executable mnet-axioma
+executable circuits-net-axioma
   import: ghc-options-stanza
   default-language: GHC2024
   hs-source-dirs: app
@@ -65,4 +65,4 @@ executable mnet-axioma
     base >=4.20 && <5,
     circuits-mat,
     harpie >=0.3 && <0.4,
-    mnet,
+    circuits-net,

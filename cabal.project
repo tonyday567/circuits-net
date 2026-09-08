@@ -1,4 +1,4 @@
 packages:
-  mnet.cabal
+  circuits-net.cabal
 
 write-ghc-environment-files: always

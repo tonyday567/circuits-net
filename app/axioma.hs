@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | Oracles for the circuits-ecosystem rewrite of mnet.
+-- | Oracles for the circuits-ecosystem rewrite of circuits-net.
 --
 --   1. Identity-training oracle: a 2-layer MLP trained on the identity
 --      mapping must decrease loss.
