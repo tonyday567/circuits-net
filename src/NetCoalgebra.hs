@@ -5,14 +5,13 @@
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | Skip-Para neural network expressed as a polynomial coalgebra over the
--- circuits ecosystem.
+-- | Skip-Para neural network over the circuits ecosystem.
 --
 -- * Linear maps use 'Circuit.Mat.Dense'.
 -- * Gradients are produced via 'Circuit.Diff.Param.DiffP' (reverse mode).
 -- * Parameter updates run through 'Circuit.Learn.Ephemeral.sgd' 'Progress'.
--- * The whole training step is packaged as a 'Circuit.System.Coalgebra'
---   whose output direction is a learning-rate scalar.
+-- * The training step runs through 'trainStep'/'trainIdentity';
+--   'trainNetCoalgebra' trains it for @n@ steps on a fixed @(x, target)@ pair.
 --
 -- A 'These'-based boundary type is provided for future batch scheduling;
 -- batching via 'Circuit.Tensor' is left as a TODO stub.
@@ -29,9 +28,8 @@ module NetCoalgebra
     NetState (..),
     initNetState,
 
-    -- * Training step and coalgebra
+    -- * Training step
     trainStep,
-    netCoalgebra,
     trainNetCoalgebra,
     trainIdentity,
 
@@ -49,9 +47,7 @@ where
 
 import Circuit.Diff.Param (DiffP (..), runDiffP)
 import Circuit.Learn.Ephemeral (Progress (..), sgd)
-import Circuit.Machine (Coalgebra (..))
 import Circuit.Mat.Dense (Matrix (..), matTimes, matVec)
-import Circuit.Poly (Eval (..), Mono, lens)
 import Data.Vector.Unboxed qualified as VU
 import Harpie.Array (Array, arrayAs)
 import Harpie.Array qualified as A
@@ -196,30 +192,7 @@ trainStep st (x, target) =
          in NetState (reshapeParams flat' p)
    in (y, apply)
 
--- | Polynomial coalgebra view of the network.
---
--- * State: 'NetState'.
--- * Input position: @(input, target)@; no input direction.
--- * Output position: prediction; output direction: learning rate.
-netCoalgebra ::
-  Coalgebra
-    NetState
-    (Mono () (Array Double, Array Double))
-    (Mono Double (Array Double))
-netCoalgebra =
-  Coalgebra
-    { act =
-        \st ->
-          lens
-            (\(x, _) -> Net.forward (netParams st) x)
-            (\_ _ -> ()),
-      upd =
-        \st (EP (EK (x, target), _)) ->
-          let (y, apply) = trainStep st (x, target)
-           in EP (EK y, EE apply)
-    }
-
--- | Train the coalgebra for @n@ steps on a fixed @(x, target)@ pair.
+-- | Train for @n@ steps on a fixed @(x, target)@ pair.
 trainNetCoalgebra ::
   Net.NetParams Double ->
   Array Double ->

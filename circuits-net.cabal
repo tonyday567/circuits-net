@@ -14,7 +14,7 @@ description:
   A small neural-network library rebuilt on the circuits ecosystem:
   circuits-mat for linear algebra, circuits-diff for reverse-mode gradients,
   circuits-learn for optimiser processes, and Circuit.Poly for the
-  coalgebra view of training.
+  polynomial model of the forward pass.
 
 build-type: Simple
 tested-with:

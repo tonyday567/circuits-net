@@ -4,8 +4,8 @@
 --
 --   1. Identity-training oracle: a 2-layer MLP trained on the identity
 --      mapping must decrease loss.
---   2. Coalgebra oracle: the same training loop expressed as a
---      'Circuit.System.Coalgebra' must also decrease loss.
+--   2. Packaged-training oracle: 'trainNetCoalgebra', the delegate of the
+--      same training loop, must also decrease loss.
 --   3. Gradient oracle: gradients produced by 'circuits-ad' via 'DiffP'
 --      must agree with hand-rolled reference gradients on a fixed input.
 module Main where
@@ -72,27 +72,27 @@ main = do
       exitFailure
 
   ----------------------------------------------------------------------
-  -- Coalgebra bridge oracle
+  -- Packaged training oracle
   ----------------------------------------------------------------------
   do
-    let coalHistory = trainNetCoalgebra params x target lr 500
-        coalInitial = fst (mseLoss (forward params x) target)
-        coalFinal = case coalHistory of
-          [] -> coalInitial
+    let packagedHistory = trainNetCoalgebra params x target lr 500
+        packagedInitial = fst (mseLoss (forward params x) target)
+        packagedFinal = case packagedHistory of
+          [] -> packagedInitial
           hs -> fst (mseLoss (forward (snd (last hs)) x) target)
-    putStrLn $ "Coalgebra initial loss: " ++ show coalInitial
-    putStrLn $ "Coalgebra final loss:   " ++ show coalFinal
+    putStrLn $ "Packaged  initial loss: " ++ show packagedInitial
+    putStrLn $ "Packaged  final loss:   " ++ show packagedFinal
 
-    if coalFinal < coalInitial / 2
-      then putStrLn "PASS: coalgebra loss decreased substantially"
+    if packagedFinal < packagedInitial / 2
+      then putStrLn "PASS: packaged loss decreased substantially"
       else do
-        putStrLn $ "FAIL: coalgebra loss " ++ show coalInitial ++ " -> " ++ show coalFinal
+        putStrLn $ "FAIL: packaged loss " ++ show packagedInitial ++ " -> " ++ show packagedFinal
         exitFailure
 
-    if coalFinal < 0.1
-      then putStrLn "PASS: coalgebra final loss < 0.1"
+    if packagedFinal < 0.1
+      then putStrLn "PASS: packaged final loss < 0.1"
       else do
-        putStrLn $ "FAIL: coalgebra final loss " ++ show coalFinal ++ " >= 0.1"
+        putStrLn $ "FAIL: packaged final loss " ++ show packagedFinal ++ " >= 0.1"
         exitFailure
 
   ----------------------------------------------------------------------
