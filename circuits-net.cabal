@@ -64,5 +64,5 @@ executable circuits-net-axioma
   build-depends:
     base >=4.20 && <5,
     circuits-mat,
-    harpie >=0.3 && <0.4,
     circuits-net,
+    harpie >=0.3 && <0.4,
