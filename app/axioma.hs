@@ -8,9 +8,12 @@
 --      same training loop, must also decrease loss.
 --   3. Gradient oracle: gradients produced by 'circuits-ad' via 'DiffP'
 --      must agree with hand-rolled reference gradients on a fixed input.
+--   4. Nguyen Lemma 3.3 oracle: a fixed two-layer reconstruction must
+--      reproduce an independently chosen target through leaky ReLU.
 module Main where
 
-import Circuit.Mat.Dense (Matrix (..))
+import Circuit.Mat.Dense (Matrix (..), fromLists, matPlus, matTimes, toLists)
+import Data.List qualified as List
 import Harpie.Array (arrayAs)
 import Harpie.Array qualified as A
 import Net (NetParams (..), netParamsFromArrays)
@@ -116,6 +119,11 @@ main = do
         putStrLn $ "FAIL: circuits-ad gradients diverge from reference (max rel err " ++ show maxRelErr ++ ")"
         exitFailure
 
+  ----------------------------------------------------------------------
+  -- Nguyen Lemma 3.3: fixed L = k = 2 value reconstruction
+  ----------------------------------------------------------------------
+  nguyenLemma33
+
   putStrLn "All oracles passed."
   exitSuccess
 
@@ -128,3 +136,90 @@ flatten p =
       arrayAs (unMatrix (w2 p)),
       arrayAs (b2 p)
     ]
+
+-- | Nguyen's Lemma 3.3 at N = d = 2, n1 = 3, n2 = 2. The target is chosen
+-- independently; mixed signs in B1 exercise both leaky-ReLU branches.
+nguyenLemma33 :: IO ()
+nguyenLemma33 = do
+  let x = fromLists [[1, 0], [0, 1]]
+      z = fromLists [[1, 0, 1], [0, 1, 1]]
+      w2 = fromLists [[1, 0], [0, 1], [1, 1]]
+      b2 = fromLists [[0.2, -0.1]]
+      targetA = fromLists [[0.7, -0.4], [1.2, 0.9]]
+      ones = fromLists [[1], [1]]
+      identity2 = fromLists [[1, 0], [0, 1]]
+      w2Gram = matTimes (transposeDense w2) w2
+      zGram = matTimes z (transposeDense z)
+      w2Pinv = matTimes (inverse2 w2Gram) (transposeDense w2)
+      zPinv = matTimes (transposeDense z) (inverse2 zGram)
+      b1Target = matTimes (matMinus targetA (matTimes ones b2)) w2Pinv
+      preB1 = mapDense leakyInverse b1Target
+      u = matTimes zPinv preB1
+      w1 = takeRows 2 u
+      b1 = lastRow u
+      f1 = mapDense leaky (matPlus (matTimes x w1) (matTimes ones b1))
+      f2 = matPlus (matTimes f1 w2) (matTimes ones b2)
+      w2InverseError = maxAbsDiff (matTimes w2Pinv w2) identity2
+      zInverseError = maxAbsDiff (matTimes z zPinv) identity2
+      inputError = maxAbsDiff (matTimes z u) preB1
+      reconstructionError = maxAbsDiff f2 targetA
+      tolerance = 1e-12
+      b1Values = concat (toLists b1Target)
+  putStrLn $ "Nguyen W2 right-inverse max abs diff: " ++ show w2InverseError
+  putStrLn $ "Nguyen [X,1] right-inverse max abs diff: " ++ show zInverseError
+  putStrLn $ "Nguyen first-layer reconstruction max abs diff: " ++ show inputError
+  putStrLn $ "Nguyen F2 reconstruction max abs diff: " ++ show reconstructionError
+  requireWitness "Nguyen rank(X) = 2" (abs (det2 x) > tolerance)
+  requireWitness "Nguyen W2 has full column rank" (abs (det2 w2Gram) > tolerance)
+  requireWitness
+    "Nguyen B1 exercises positive and negative leaky-ReLU branches"
+    (any (< 0) b1Values && any (> 0) b1Values)
+  requireWitness "Nguyen W2 pseudoinverse is a left inverse" (w2InverseError < tolerance)
+  requireWitness "Nguyen [X,1] pseudoinverse is a right inverse" (zInverseError < tolerance)
+  requireWitness "Nguyen [X,1] U reconstructs sigma^-1(B1)" (inputError < tolerance)
+  requireWitness "Nguyen Lemma 3.3 reconstructs the independent target A" (reconstructionError < tolerance)
+
+requireWitness :: String -> Bool -> IO ()
+requireWitness label ok =
+  if ok
+    then putStrLn $ "PASS: " ++ label
+    else do
+      putStrLn $ "FAIL: " ++ label
+      exitFailure
+
+transposeDense :: Matrix a -> Matrix a
+transposeDense m = fromLists (List.transpose (toLists m))
+
+mapDense :: (a -> b) -> Matrix a -> Matrix b
+mapDense f m = fromLists (map (map f) (toLists m))
+
+matMinus :: (Num a) => Matrix a -> Matrix a -> Matrix a
+matMinus a b = fromLists (zipWith (zipWith (-)) (toLists a) (toLists b))
+
+takeRows :: Int -> Matrix a -> Matrix a
+takeRows n m = fromLists (take n (toLists m))
+
+lastRow :: Matrix a -> Matrix a
+lastRow m = fromLists [last (toLists m)]
+
+maxAbsDiff :: Matrix Double -> Matrix Double -> Double
+maxAbsDiff a b = maximum (map abs (concat (toLists (matMinus a b))))
+
+det2 :: Matrix Double -> Double
+det2 m = case toLists m of
+  [[a, b], [c, d]] -> a * d - b * c
+  _ -> error "det2: expected a 2x2 matrix"
+
+-- | Inverse of the fixed witness's 2x2 Gram matrix.
+inverse2 :: Matrix Double -> Matrix Double
+inverse2 m = case toLists m of
+  [[a, b], [c, d]] ->
+    let det = det2 m
+     in fromLists [[d / det, negate b / det], [negate c / det, a / det]]
+  _ -> error "inverse2: expected a 2x2 matrix"
+
+leaky :: Double -> Double
+leaky x = if x < 0 then 0.1 * x else x
+
+leakyInverse :: Double -> Double
+leakyInverse y = if y < 0 then y / 0.1 else y
