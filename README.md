@@ -8,17 +8,15 @@ https://cybercat.institute/2024/04/15/neural-network-first-principles/
 
 ## Overview
 
-`circuits-net` now delegates its building blocks to the circuits ecosystem instead of
-rolling them by hand:
+`circuits-net` is a fixed two-layer MLP client of the circuits ecosystem:
 
 - **circuits-mat** — dense matrix/vector operations (`Circuit.Mat.Dense`).
-- **circuits-ad** — reverse-mode automatic differentiation via
-  `Circuit.AD.Param.DiffP`.
-- **circuits-learn** — optimisers expressed as `Circuit.Process` machines.
-- **Circuit.Poly / Circuit.ChannelPoly** — polynomial-coalgebra view of a
-  training step.
-- **Data.These** — boundary type distinguishing inference-only, gradient-only,
-  and combined inference-with-gradient traffic.
+- **circuits-diff** — the explicit parameterised forward/backward carrier
+  (`Circuit.Diff.Param.DiffP`). The network's reverse pass is written manually
+  in this carrier; it is not automatic differentiation of `Net.model`.
+- **circuits-learn** — read-only model composition (`Circuit.Learn.Para`) and
+  stateless SGD (`Circuit.Learn.Ephemeral`).
+- **Data.These** — the `Boundary` synonym for inference/gradient traffic.
 
 The old hand-rolled `LensS`, `BackPass`, and `NetCoalgebra.Poly` modules have
 been removed.
@@ -45,29 +43,38 @@ Forward-only layer definitions for a 2-layer MLP:
 
 ### NetCoalgebra
 
-The same network expressed as a polynomial coalgebra:
+The same fixed network with explicit training functions:
 
-- `modelDiffP` is the network as a `DiffP` morphism; reverse-mode gradients
-  are computed automatically.
-- `NetState` pairs parameters with one `Process` per scalar parameter.
+- `modelDiffP` is an internal `DiffP` value containing the manual forward and
+  reverse passes.
+- `NetState` wraps the current `NetParams`; the SGD optimiser is stateless.
 - `trainStep` returns a prediction and a learning-rate-consuming next-state
   function.
-- `netCoalgebra` exposes the training step as a
-  `Coalgebra NetState (Mono () (input, target)) (Mono Double prediction)`.
-- `trainIdentity` / `trainNetCoalgebra` run the identity-mapping oracle.
-- `referenceGradients` provides hand-rolled gradients for the gradient oracle.
+- `trainIdentity` / `trainNetCoalgebra` repeatedly train on one fixed
+  input/target pair; the latter currently delegates to the former.
+- `referenceGradients` supplies the hand-written comparison used by the
+  gradient oracle.
 
 ## Oracles
 
 ```bash
-cabal test oracle
+cabal run circuits-net-axioma
 ```
 
-The test suite checks:
+The executable checks:
 
-1. `trainIdentity` decreases loss on the 4 → 8 → 4 identity task.
-2. `trainNetCoalgebra` (the coalgebra view) also decreases loss.
-3. `circuits-ad` gradients agree with the hand-rolled reference gradients.
+1. `trainIdentity` decreases loss on one all-ones 4 → 8 → 4 example, reaches
+   final loss below 0.1, and produces four outputs.
+2. `trainNetCoalgebra` decreases loss on the same example through its delegate.
+3. The manual `DiffP` parameter gradients agree with the hand-written reference
+   on that fixed example.
+4. A fixed Nguyen Lemma 3.3 reconstruction satisfies its rank, pseudoinverse,
+   leaky-ReLU branch, and target-reconstruction witnesses.
+
+These are fixed-example checks, not independent or general neural-network
+coverage. In particular, the two gradient implementations share their
+mathematical operations, and the training example does not by itself establish
+an identity mapping.
 
 ## Version
 

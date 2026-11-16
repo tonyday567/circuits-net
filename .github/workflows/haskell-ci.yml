@@ -94,6 +94,35 @@ jobs:
       - name: Build
         run: cabal --project-file=cabal.project.ci build all
 
+      - name: Run circuits-net axioma
+        run: cabal run circuits-net-axioma
+
+      # CI-only control: mutate one predicate so the executable must fail.
+      # This is not a failing test in the source tree; the trap restores it.
+      - name: Deliberate failing control — axioma exit propagation
+        id: axioma-failure-control
+        if: matrix.ghc-version == '9.14'
+        continue-on-error: true
+        run: |
+          cp app/axioma.hs "$RUNNER_TEMP/axioma.hs.before-control"
+          trap 'cp "$RUNNER_TEMP/axioma.hs.before-control" app/axioma.hs' EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("app/axioma.hs")
+          source = path.read_text()
+          old = "if finalLoss < initialLoss / 2"
+          assert source.count(old) == 1
+          path.write_text(source.replace(old, "if False"))
+          PY
+          echo "DELIBERATE CONTROL: the first oracle is disabled; this step must fail."
+          cabal run circuits-net-axioma
+
+      - name: Confirm the deliberate control was observed as a failure
+        if: success() && matrix.ghc-version == '9.14'
+        run: |
+          test '${{ steps.axioma-failure-control.outcome }}' = 'failure'
+          git diff --exit-code -- app/axioma.hs
+
       - name: Check cabal file
         run: cabal check
 
