@@ -63,18 +63,25 @@ cabal run circuits-net-axioma
 
 The executable checks:
 
-1. `trainIdentity` decreases loss on one all-ones 4 → 8 → 4 example, reaches
-   final loss below 0.1, and produces four outputs.
-2. `trainNetCoalgebra` decreases loss on the same example through its delegate.
+1. `trainIdentity` decreases loss on the retained all-ones 4 → 8 → 4 smoke and
+   on four deterministic nonconstant identity inputs, reaching final loss below
+   0.1 in each case.
+2. `trainNetCoalgebra` decreases loss on the all-ones example through its
+   delegate.
 3. The manual `DiffP` parameter gradients agree with the hand-written reference
-   on that fixed example.
-4. A fixed Nguyen Lemma 3.3 reconstruction satisfies its rank, pseudoinverse,
-   leaky-ReLU branch, and target-reconstruction witnesses.
+   on the smoke example and with central finite differences of an independent
+   direct scalar objective at both positive and negative ReLU preactivations.
+4. Exact witnesses pin MSE loss and gradient, a zero-rate flatten/reshape round
+   trip through public training, one SGD update, and Para/DiffP primal parity.
+5. Boundary pins record current behaviour for empty and mismatched arrays and
+   for zero and negative training-step counts.
+6. A separately labelled Dense/mathematical witness checks the fixed Nguyen
+   Lemma 3.3 rank, pseudoinverse, leaky-ReLU branch, and target reconstruction.
 
-These are fixed-example checks, not independent or general neural-network
-coverage. In particular, the two gradient implementations share their
-mathematical operations, and the training example does not by itself establish
-an identity mapping.
+These are fixed deterministic witnesses, not general neural-network coverage.
+The boundary pins are not endorsements: empty MSE currently produces NaN,
+mismatched arrays truncate or ignore excess values, and negative step counts
+remain productive rather than rejecting the request.
 
 ## Version
 
